@@ -1,10 +1,11 @@
 import { openai } from "@ai-sdk/openai"
 import { streamText } from "ai"
 import { currentUser } from "@clerk/nextjs/server"
+import { NextRequest } from "next/server"
 
 export const maxDuration = 30
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const user = await currentUser()
 
@@ -13,6 +14,10 @@ export async function POST(req: Request) {
     }
 
     const { messages } = await req.json()
+
+    if (!messages || !Array.isArray(messages)) {
+      return new Response("Invalid messages format", { status: 400 })
+    }
 
     const result = streamText({
       model: openai("gpt-4-turbo"),
