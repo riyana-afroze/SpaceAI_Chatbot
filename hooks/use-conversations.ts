@@ -158,7 +158,10 @@ export function useConversations() {
 
   const addMessage = async (content: string, role: 'user' | 'assistant', conversationId?: string) => {
     const targetConversationId = conversationId || currentConversation?.id
-    if (!targetConversationId) return null
+    if (!targetConversationId) {
+      console.error('No conversation ID provided for adding message')
+      return null
+    }
 
     try {
       const newMessage: Message = {
@@ -175,7 +178,10 @@ export function useConversations() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase error inserting message:', error)
+        throw error
+      }
 
       const message = data as Message
       setMessages(prev => [...prev, message])

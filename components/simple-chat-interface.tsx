@@ -10,6 +10,7 @@ import { MarkdownContent } from "@/components/markdown-content"
 import { UserButton } from "@clerk/nextjs"
 import { Send, Rocket, User, Bot } from "lucide-react"
 import { useState, useEffect } from "react"
+import Link from "next/link"
 
 export function SimpleChatInterface() {
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
@@ -38,7 +39,9 @@ export function SimpleChatInterface() {
             <div className="flex items-center space-x-3">
               <Rocket className="w-8 h-8 text-blue-400" />
               <div>
-                <h1 className="text-2xl font-bold text-white">Cosmos AI</h1>
+                <Link href="/">
+                  <h1 className="text-2xl font-bold text-white hover:text-blue-300 transition-colors cursor-pointer">Cosmos AI</h1>
+                </Link>
                 <p className="text-sm text-slate-400">Simple Chat Mode</p>
               </div>
             </div>

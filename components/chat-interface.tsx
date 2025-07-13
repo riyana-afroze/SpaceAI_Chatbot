@@ -12,10 +12,12 @@ import { Send, Rocket, User, Bot, Plus, MessageSquare, Trash2, Menu, X } from "l
 import { useState, useEffect } from "react"
 import { useConversations } from "@/hooks/use-conversations"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 export function ChatInterface() {
   const [hasStarted, setHasStarted] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [pendingConversationId, setPendingConversationId] = useState<string | null>(null)
   
   const {
     conversations,
@@ -32,8 +34,10 @@ export function ChatInterface() {
     api: '/api/chat',
     onFinish: async (message) => {
       // Save assistant message to database
-      if (currentConversation) {
-        await addMessage(message.content, 'assistant', currentConversation.id)
+      const conversationId = pendingConversationId || currentConversation?.id
+      if (conversationId) {
+        await addMessage(message.content, 'assistant', conversationId)
+        setPendingConversationId(null) // Clear the pending ID
       }
     },
   })
@@ -63,6 +67,9 @@ export function ChatInterface() {
       conversation = await createConversation(title)
       if (!conversation) return
     }
+
+    // Store conversation ID for the onFinish callback
+    setPendingConversationId(conversation.id)
 
     // Save user message to database
     await addMessage(input, 'user', conversation.id)
@@ -187,7 +194,9 @@ export function ChatInterface() {
               </Button>
               <Rocket className="w-8 h-8 text-blue-400" />
               <div>
-                <h1 className="text-2xl font-bold text-white">Cosmos AI</h1>
+                <Link href="/">
+                  <h1 className="text-2xl font-bold text-white hover:text-blue-300 transition-colors cursor-pointer">Cosmos AI</h1>
+                </Link>
                 {currentConversation && (
                   <p className="text-sm text-slate-400 truncate max-w-xs">
                     {currentConversation.title}

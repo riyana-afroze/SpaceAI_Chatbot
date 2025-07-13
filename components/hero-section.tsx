@@ -14,9 +14,11 @@ export function HeroSection() {
       <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
         <div className="flex items-center justify-center mb-6">
           <Rocket className="w-12 h-12 text-blue-400 mr-4" />
-          <h1 className="text-6xl md:text-8xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
-            COSMOS AI
-          </h1>
+          <Link href="/">
+            <h1 className="text-6xl md:text-8xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent hover:opacity-80 transition-opacity cursor-pointer">
+              COSMOS AI
+            </h1>
+          </Link>
         </div>
 
         <p className="text-xl md:text-2xl text-slate-300 mb-8 max-w-2xl mx-auto">
