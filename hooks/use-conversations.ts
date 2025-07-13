@@ -29,10 +29,15 @@ export function useConversations() {
   }, [currentConversation?.id])
 
   const loadConversations = async () => {
-    if (!user?.id) return
+    if (!user?.id) {
+      console.log('No user ID available')
+      return
+    }
     
     setLoading(true)
     try {
+      console.log('Loading conversations for user:', user.id)
+      
       const { data, error } = await supabase
         .from('conversations')
         .select('*')
@@ -41,8 +46,16 @@ export function useConversations() {
 
       if (error) {
         console.error('Supabase error loading conversations:', error)
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
         throw error
       }
+      
+      console.log('Successfully loaded conversations:', data)
       setConversations(data || [])
     } catch (error) {
       console.error('Error loading conversations:', error)
@@ -68,7 +81,12 @@ export function useConversations() {
   }
 
   const createConversation = async (title: string) => {
-    if (!user?.id) return null
+    if (!user?.id) {
+      console.error('No user ID available for creating conversation')
+      return null
+    }
+
+    console.log('Creating conversation with title:', title, 'for user:', user.id)
 
     try {
       const newConversation: Conversation = {
@@ -79,20 +97,34 @@ export function useConversations() {
         updated_at: new Date().toISOString(),
       }
 
+      console.log('Attempting to insert conversation:', newConversation)
+
       const { data, error } = await supabase
         .from('conversations')
         .insert([newConversation])
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('Supabase insert error:', error)
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        })
+        throw error
+      }
 
+      console.log('Successfully created conversation:', data)
+      
       const conversation = data as Conversation
       setConversations(prev => [conversation, ...prev])
       setCurrentConversation(conversation)
       return conversation
     } catch (error) {
       console.error('Error creating conversation:', error)
+      console.error('Full error object:', JSON.stringify(error, null, 2))
       return null
     }
   }

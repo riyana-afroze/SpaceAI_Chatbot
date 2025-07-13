@@ -3,7 +3,17 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables')
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false
+  }
+})
 
 export interface Conversation {
   id: string
@@ -19,6 +29,13 @@ export interface Message {
   content: string
   role: 'user' | 'assistant'
   created_at: string
+}
+
+// Helper function to set auth token for Clerk integration
+export const setSupabaseAuth = async (clerkUserId: string) => {
+  // For now, we'll use the user ID directly since we're using RLS policies
+  // In a production app, you'd want to use Clerk's JWT tokens
+  return clerkUserId
 }
 
 // Database schema for reference
