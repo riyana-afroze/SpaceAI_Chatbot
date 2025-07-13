@@ -26,6 +26,10 @@ export function SimpleChatInterface() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
+    
+    if (!input.trim() || isLoading) return
+    
     if (!hasStarted) setHasStarted(true)
     handleSubmit(e)
   }

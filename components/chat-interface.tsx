@@ -17,7 +17,7 @@ import Link from "next/link"
 export function ChatInterface() {
   const [hasStarted, setHasStarted] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [pendingConversationId, setPendingConversationId] = useState<string | null>(null)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   
   const {
     conversations,
@@ -33,11 +33,11 @@ export function ChatInterface() {
   const { messages, input, handleInputChange, handleSubmit, isLoading, setMessages } = useChat({
     api: '/api/chat',
     onFinish: async (message) => {
-      // Save assistant message to database
-      const conversationId = pendingConversationId || currentConversation?.id
+      // Save assistant message to database using the active conversation ID
+      const conversationId = activeConversationId || currentConversation?.id
       if (conversationId) {
         await addMessage(message.content, 'assistant', conversationId)
-        setPendingConversationId(null) // Clear the pending ID
+        setActiveConversationId(null) // Clear after use
       }
     },
   })
@@ -57,7 +57,9 @@ export function ChatInterface() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim()) return
+    e.stopPropagation()
+    
+    if (!input.trim() || isLoading) return
 
     let conversation = currentConversation
 
@@ -69,12 +71,14 @@ export function ChatInterface() {
     }
 
     // Store conversation ID for the onFinish callback
-    setPendingConversationId(conversation.id)
+    setActiveConversationId(conversation.id)
 
     // Save user message to database
     await addMessage(input, 'user', conversation.id)
 
     if (!hasStarted) setHasStarted(true)
+    
+    // Submit to AI API
     handleSubmit(e)
 
     // Update conversation title if it's the first message
@@ -88,12 +92,14 @@ export function ChatInterface() {
     setMessages([])
     setHasStarted(false)
     setSidebarOpen(false)
+    setActiveConversationId(null) // Clear any pending conversation ID
   }
 
   const selectConversation = (conversation: any) => {
     setCurrentConversation(conversation)
     setHasStarted(true)
     setSidebarOpen(false)
+    setActiveConversationId(null) // Clear any pending conversation ID
   }
 
   const handleDeleteConversation = async (conversationId: string, e: React.MouseEvent) => {
