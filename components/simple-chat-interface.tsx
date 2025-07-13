@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { MovingBorder } from "@/components/ui/moving-border"
+import { MarkdownContent } from "@/components/markdown-content"
 import { UserButton } from "@clerk/nextjs"
 import { Send, Rocket, User, Bot } from "lucide-react"
 import { useState, useEffect } from "react"
@@ -107,7 +108,11 @@ export function SimpleChatInterface() {
                     message.role === "user" ? "bg-blue-600 text-white" : "bg-slate-800 border-slate-700"
                   }`}
                 >
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
+                  {message.role === "user" ? (
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-white">{message.content}</div>
+                  ) : (
+                    <MarkdownContent content={message.content} />
+                  )}
                 </Card>
                 {message.role === "user" && (
                   <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center flex-shrink-0">
