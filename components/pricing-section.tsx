@@ -5,9 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CardSpotlight } from "@/components/ui/card-spotlight"
 import { Check, Zap, Rocket, Star } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
+import { useState, useEffect } from "react"
 
 const plans = [
   {
+    id: "explorer",
     name: "Explorer",
     price: "Free",
     description: "Perfect for curious minds starting their cosmic journey",
@@ -17,6 +19,7 @@ const plans = [
     priceId: null,
   },
   {
+    id: "astronaut",
     name: "Astronaut",
     price: "$19",
     period: "/month",
@@ -31,9 +34,10 @@ const plans = [
     ],
     icon: Star,
     popular: true,
-    priceId: "price_astronaut_monthly",
+    priceId: "price_1QTBKmAD73D0UdfpMYqDqgRB", // Test price ID - replace with your actual Stripe price ID
   },
   {
+    id: "commander",
     name: "Mission Commander",
     price: "$49",
     period: "/month",
@@ -49,14 +53,25 @@ const plans = [
     ],
     icon: Zap,
     popular: false,
-    priceId: "price_commander_monthly",
+    priceId: "price_1QTBLcAD73D0UdfpT8xTWKnP", // Test price ID - replace with your actual Stripe price ID
   },
 ]
 
 export function PricingSection() {
   const { user } = useUser()
+  const [currentPlan, setCurrentPlan] = useState<string>("explorer")
+  const [isLoading, setIsLoading] = useState<string | null>(null)
 
-  const handleSubscribe = async (priceId: string | null) => {
+  // Get user's current plan from Clerk metadata or default to "explorer" (free)
+  useEffect(() => {
+    if (user?.publicMetadata?.plan) {
+      setCurrentPlan(user.publicMetadata.plan as string)
+    } else {
+      setCurrentPlan("explorer") // Default to free plan
+    }
+  }, [user])
+
+  const handleSubscribe = async (priceId: string | null, planId: string) => {
     if (!priceId) return
 
     if (!user) {
@@ -64,24 +79,52 @@ export function PricingSection() {
       return
     }
 
+    // Don't allow subscribing to current plan
+    if (planId === currentPlan) return
+
+    setIsLoading(planId)
+
     try {
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ priceId }),
+        body: JSON.stringify({ 
+          priceId,
+          userId: user.id,
+          planId
+        }),
       })
+
+      if (!response.ok) {
+        throw new Error("Failed to create checkout session")
+      }
 
       const { sessionId } = await response.json()
 
       // Redirect to Stripe Checkout
       const stripe = (window as any).Stripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+      if (!stripe) {
+        throw new Error("Stripe not loaded")
+      }
       await stripe.redirectToCheckout({ sessionId })
     } catch (error) {
       console.error("Error:", error)
+      alert("Failed to start checkout process. Please try again.")
+    } finally {
+      setIsLoading(null)
     }
   }
+
+  const getButtonText = (plan: any) => {
+    if (plan.id === currentPlan) {
+      return "Current Plan"
+    }
+    return plan.price === "Free" ? "Get Started" : "Subscribe Now"
+  }
+
+  const isCurrentPlan = (planId: string) => planId === currentPlan
 
   return (
     <section className="py-20 px-4">
@@ -95,11 +138,28 @@ export function PricingSection() {
 
         <div className="grid md:grid-cols-3 gap-8">
           {plans.map((plan, index) => (
-            <CardSpotlight key={index} className={`relative ${plan.popular ? "ring-2 ring-blue-500" : ""}`}>
-              {plan.popular && (
+            <CardSpotlight 
+              key={index} 
+              className={`relative ${
+                isCurrentPlan(plan.id) 
+                  ? "ring-2 ring-blue-500" 
+                  : plan.popular 
+                    ? "ring-2 ring-blue-500/50" 
+                    : ""
+              }`}
+            >
+              {plan.popular && !isCurrentPlan(plan.id) && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                   <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-medium">
                     Most Popular
+                  </span>
+                </div>
+              )}
+
+              {isCurrentPlan(plan.id) && (
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-green-600 text-white px-4 py-1 rounded-full text-sm font-medium">
+                    Current Plan
                   </span>
                 </div>
               )}
@@ -127,11 +187,16 @@ export function PricingSection() {
 
                   <Button
                     className={`w-full mt-6 ${
-                      plan.popular ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-700 hover:bg-slate-600"
+                      isCurrentPlan(plan.id)
+                        ? "bg-green-600 hover:bg-green-600 cursor-default"
+                        : plan.popular 
+                          ? "bg-blue-600 hover:bg-blue-700" 
+                          : "bg-slate-700 hover:bg-slate-600"
                     }`}
-                    onClick={() => handleSubscribe(plan.priceId)}
+                    onClick={() => handleSubscribe(plan.priceId, plan.id)}
+                    disabled={isCurrentPlan(plan.id) || isLoading === plan.id}
                   >
-                    {plan.price === "Free" ? "Get Started" : "Subscribe Now"}
+                    {isLoading === plan.id ? "Processing..." : getButtonText(plan)}
                   </Button>
                 </CardContent>
               </Card>
