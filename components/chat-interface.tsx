@@ -9,7 +9,7 @@ import { MovingBorder } from "@/components/ui/moving-border"
 import { MarkdownContent } from "@/components/markdown-content"
 import { UserButton } from "@clerk/nextjs"
 import { Send, Rocket, User, Bot, Plus, MessageSquare, Trash2, Menu, X } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useConversations } from "@/hooks/use-conversations"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -17,7 +17,7 @@ import Link from "next/link"
 export function ChatInterface() {
   const [hasStarted, setHasStarted] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const activeConversationIdRef = useRef<string | null>(null)
   
   const {
     conversations,
@@ -34,26 +34,32 @@ export function ChatInterface() {
     api: '/api/chat',
     onFinish: async (message) => {
       // Save assistant message to database using the active conversation ID
-      const conversationId = activeConversationId || currentConversation?.id
+      const conversationId = activeConversationIdRef.current || currentConversation?.id
+      
       if (conversationId) {
-        await addMessage(message.content, 'assistant', conversationId)
-        setActiveConversationId(null) // Clear after use
+        // Don't update UI since useChat already handles it
+        await addMessage(message.content, 'assistant', conversationId, false)
+        activeConversationIdRef.current = null // Clear after use
       }
     },
   })
 
-  // Sync conversation messages with AI chat messages
+  // Sync conversation messages with AI chat messages only when switching conversations
   useEffect(() => {
-    if (conversationMessages.length > 0) {
-      setMessages(conversationMessages.map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-      })))
+    if (currentConversation?.id) {
+      // Loading an existing conversation - sync from database
+      if (conversationMessages.length > 0) {
+        setMessages(conversationMessages.map(msg => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+        })))
+      }
     } else {
+      // No conversation selected - clear messages
       setMessages([])
     }
-  }, [conversationMessages, setMessages])
+  }, [currentConversation?.id, conversationMessages, setMessages])
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,18 +74,21 @@ export function ChatInterface() {
       const title = input.slice(0, 50) + (input.length > 50 ? '...' : '')
       conversation = await createConversation(title)
       if (!conversation) return
+      
+      // Immediately set the current conversation so it's available for onFinish
+      setCurrentConversation(conversation)
     }
 
-    // Store conversation ID for the onFinish callback
-    setActiveConversationId(conversation.id)
-
-    // Save user message to database
-    await addMessage(input, 'user', conversation.id)
+    // Store conversation ID for the onFinish callback using ref (persists across renders)
+    activeConversationIdRef.current = conversation.id
 
     if (!hasStarted) setHasStarted(true)
     
-    // Submit to AI API
+    // Submit to AI API first - this will handle adding the user message to the UI
     handleSubmit(e)
+
+    // Save user message to database (but don't add to UI since useChat already did)
+    await addMessage(input, 'user', conversation.id, false)
 
     // Update conversation title if it's the first message
     if (messages.length === 0 && input.length <= 50) {
@@ -92,14 +101,14 @@ export function ChatInterface() {
     setMessages([])
     setHasStarted(false)
     setSidebarOpen(false)
-    setActiveConversationId(null) // Clear any pending conversation ID
+    activeConversationIdRef.current = null // Clear any pending conversation ID
   }
 
   const selectConversation = (conversation: any) => {
     setCurrentConversation(conversation)
     setHasStarted(true)
     setSidebarOpen(false)
-    setActiveConversationId(null) // Clear any pending conversation ID
+    activeConversationIdRef.current = null // Clear any pending conversation ID
   }
 
   const handleDeleteConversation = async (conversationId: string, e: React.MouseEvent) => {
@@ -252,7 +261,16 @@ export function ChatInterface() {
                     {message.role === "user" ? (
                       <div className="whitespace-pre-wrap text-sm leading-relaxed text-white">{message.content}</div>
                     ) : (
-                      <MarkdownContent content={message.content} />
+                      <div className="relative">
+                        <MarkdownContent content={message.content} />
+                        {isLoading && messages[messages.length - 1]?.id === message.id && (
+                          <span className="inline-flex ml-1">
+                            <span className="animate-pulse text-blue-400">.</span>
+                            <span className="animate-pulse text-blue-400" style={{ animationDelay: "0.2s" }}>.</span>
+                            <span className="animate-pulse text-blue-400" style={{ animationDelay: "0.4s" }}>.</span>
+                          </span>
+                        )}
+                      </div>
                     )}
                   </Card>
                   {message.role === "user" && (
@@ -262,7 +280,7 @@ export function ChatInterface() {
                   )}
                 </div>
               ))}
-              {isLoading && (
+              {isLoading && !messages.some(m => m.role === "assistant" && m.content) && (
                 <div className="flex items-start space-x-4">
                   <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
                     <Bot className="w-4 h-4 text-white" />

@@ -156,7 +156,7 @@ export function useConversations() {
     }
   }
 
-  const addMessage = async (content: string, role: 'user' | 'assistant', conversationId?: string) => {
+  const addMessage = async (content: string, role: 'user' | 'assistant', conversationId?: string, updateUI: boolean = true) => {
     const targetConversationId = conversationId || currentConversation?.id
     if (!targetConversationId) {
       console.error('No conversation ID provided for adding message')
@@ -184,7 +184,11 @@ export function useConversations() {
       }
 
       const message = data as Message
-      setMessages(prev => [...prev, message])
+      
+      // Only update UI state if requested (to prevent duplication with useChat)
+      if (updateUI) {
+        setMessages(prev => [...prev, message])
+      }
 
       // Update conversation timestamp
       await supabase
